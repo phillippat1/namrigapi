@@ -1,0 +1,8 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+supabase==2.3.0
+python-multipart==0.0.6
+
+# Optional: for automated SharePoint downloads
+# Office365-REST-Python-Client==2.5.3
+# pandas==2.2.0
