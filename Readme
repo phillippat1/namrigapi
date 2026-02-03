@@ -1,0 +1,278 @@
+# Baker Hughes Weekly Rig Count API
+
+A Flask REST API for serving rig count data from your Baker Hughes Weekly CSV file.
+
+## Data Structure
+
+Your CSV contains **20,297 rows** with these columns:
+
+| Column | Description | Example Values |
+|--------|-------------|----------------|
+| `Country` | Country | UNITED STATES, CANADA |
+| `County` | County name | BURLESON, LEE, CENTRAL SASKATCHEWAN |
+| `Basin` | Basin name | Permian, Eagle Ford, Other |
+| `GOM` | Gulf of Mexico flag | Yes, No |
+| `DrillFor` | Target resource | Oil, Gas |
+| `Location` | Location type | Land, Offshore |
+| `State/Province` | State or province | TEXAS, SASKATCHEWAN |
+| `Trajectory` | Well trajectory | Horizontal, Vertical |
+| `Year` | Year | 2024, 2025 |
+| `Month` | Month number | 1-12 |
+| `US_PublishDate` | Publish date | 2024-08-23 |
+| `Rig Count Value` | Rig count | 1, 2, 3... |
+
+---
+
+## Quick Start
+
+### 1. Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate it
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Add Your CSV File
+
+Copy your `Baker_Hughes_Weekly.csv` into this directory (or set the path via environment variable):
+
+```bash
+# Windows
+set CSV_PATH=C:\path\to\Baker_Hughes_Weekly.csv
+
+# Mac/Linux
+export CSV_PATH="/path/to/Baker_Hughes_Weekly.csv"
+```
+
+### 3. Run the API
+
+```bash
+python app.py
+```
+
+The API will be available at `http://localhost:5000`
+
+---
+
+## API Endpoints
+
+### Core Data Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | API documentation |
+| `/health` | GET | Health check with data status |
+| `/data` | GET | Get all data (paginated) |
+| `/data/columns` | GET | List columns with metadata |
+| `/data/summary` | GET | Summary statistics |
+| `/data/filter` | GET | Filter by any column |
+| `/data/latest` | GET | Most recent records |
+| `/data/date-range` | GET | Filter by date range |
+
+### Aggregation Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/aggregate/by-state` | GET | Rig counts by state/province |
+| `/aggregate/by-basin` | GET | Rig counts by basin |
+| `/aggregate/by-country` | GET | Rig counts by country |
+| `/aggregate/by-date` | GET | Time series (total by date) |
+| `/aggregate/time-series` | GET | Time series with grouping |
+
+### Utility Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/unique/<column>` | GET | Unique values for a column |
+| `/reload` | POST | Reload CSV from disk |
+
+---
+
+## Usage Examples
+
+### Get All Data (Paginated)
+```bash
+curl "http://localhost:5000/data?page=1&per_page=50"
+```
+
+### Filter by State
+```bash
+curl "http://localhost:5000/data/filter?State/Province=TEXAS"
+```
+
+### Filter by Basin
+```bash
+curl "http://localhost:5000/data/filter?Basin=Permian"
+```
+
+### Filter by Drill Type (Oil vs Gas)
+```bash
+curl "http://localhost:5000/data/filter?DrillFor=Oil"
+```
+
+### Combined Filters
+```bash
+curl "http://localhost:5000/data/filter?Country=UNITED%20STATES&DrillFor=Oil&Trajectory=Horizontal"
+```
+
+### Get Latest Data (Most Recent Publish Date)
+```bash
+curl "http://localhost:5000/data/latest?n=50"
+```
+
+### Date Range Query
+```bash
+curl "http://localhost:5000/data/date-range?start=2024-01-01&end=2024-12-31"
+```
+
+### Rig Count by State (Latest Date)
+```bash
+curl "http://localhost:5000/aggregate/by-state?country=UNITED%20STATES"
+```
+
+### Rig Count by Basin (Specific Date)
+```bash
+curl "http://localhost:5000/aggregate/by-basin?date=2024-08-23&country=UNITED%20STATES"
+```
+
+### Time Series for Texas Oil Rigs
+```bash
+curl "http://localhost:5000/aggregate/by-date?state=TEXAS&drill_for=Oil"
+```
+
+### Time Series Grouped by Basin (US Only)
+```bash
+curl "http://localhost:5000/aggregate/time-series?group_by=Basin&country=UNITED%20STATES"
+```
+
+### Get All Unique Basins
+```bash
+curl "http://localhost:5000/unique/Basin"
+```
+
+### Get All Unique States
+```bash
+curl "http://localhost:5000/unique/State%2FProvince"
+```
+
+---
+
+## Query Parameters
+
+### Pagination & Sorting (all endpoints)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `page` | 1 | Page number |
+| `per_page` | 100 | Results per page (max: 1000) |
+| `sort_by` | US_PublishDate | Column to sort by |
+| `sort_order` | desc | `asc` or `desc` |
+
+### Filter Operators
+
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `=` | `State/Province=TEXAS` | Exact match |
+| `*...*` | `Basin=*Permian*` | Contains |
+| `>` | `Rig Count Value=>10` | Greater than |
+| `<` | `Year=<2025` | Less than |
+| `>=` | `Month=>=6` | Greater than or equal |
+| `<=` | `Month=<=12` | Less than or equal |
+
+---
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CSV_PATH` | `Baker_Hughes_Weekly.csv` | Path to CSV file |
+| `PORT` | `5000` | Server port |
+| `API_KEY` | None | Optional API key |
+| `FLASK_DEBUG` | `False` | Enable debug mode |
+
+### Enable API Key Protection
+
+```bash
+export API_KEY="your-secret-key-here"
+```
+
+Then include in requests:
+```bash
+curl -H "X-API-Key: your-secret-key-here" "http://localhost:5000/data"
+```
+
+---
+
+## Deployment Options
+
+### Local Production (Gunicorn)
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
+```
+
+### Railway
+1. Push to GitHub
+2. Connect Railway to your repo
+3. Set `CSV_PATH` environment variable
+4. Deploy
+
+### Docker
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
+```
+
+---
+
+## Excel / Power Query Integration
+
+```m
+let
+    Source = Json.Document(Web.Contents("http://localhost:5000/aggregate/by-date?country=UNITED STATES")),
+    data = Source[data],
+    toTable = Table.FromList(data, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    expanded = Table.ExpandRecordColumn(toTable, "Column1", {"US_PublishDate", "Rig Count Value"})
+in
+    expanded
+```
+
+---
+
+## Response Format
+
+All endpoints return JSON:
+
+```json
+{
+  "data": [
+    {
+      "Country": "UNITED STATES",
+      "State/Province": "TEXAS",
+      "Basin": "Permian",
+      "DrillFor": "Oil",
+      "Rig Count Value": 5,
+      "US_PublishDate": "2024-08-23"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 100,
+    "total": 20297,
+    "total_pages": 203,
+    "has_next": true
+  }
+}
+```
