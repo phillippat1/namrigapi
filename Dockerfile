@@ -2,6 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Upgrade pip first
+RUN pip install --upgrade pip
+
 # Copy requirements first for caching
 COPY requirements.txt .
 
